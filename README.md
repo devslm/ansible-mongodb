@@ -167,7 +167,7 @@ mongodb:
             roles: "readWrite,dbAdmin"
       # All values must be quoted also true|false
       parameters_list: {
-#        auditAuthorizationSuccess: "true" # This parameter only for percona version of MongoDB
+        auditAuthorizationSuccess: "true" # This parameter only for percona version of MongoDB
       }
  ```
      
