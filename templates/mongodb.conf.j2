@@ -1,0 +1,80 @@
+net:
+  bindIp: {{ item.value.net.ip }}
+  port: {{ item.value.net.port }}
+  ipv6: {{ item.value.net.ipv6 | to_nice_json }}
+  maxIncomingConnections: {{ item.value.net.maxconns }}
+{% if mongodb.install.version == '3.4' %}
+  http:
+    enabled: {{ item.value.net.http.enabled | to_nice_json }}
+{% endif %}
+
+processManagement:
+  fork: {{ item.value.process.management.fork | to_nice_json}}
+{% if default.path.pid is defined and default.path.pid != '' %}
+  pidFilePath: {{ default.path.pid }}/{{ mongodb.catalog.base.name }}/{{ item.value.name }}.pid
+{% endif %}
+
+storage:
+  dbPath: {{ item.value.storage.dbpath }}
+  engine: {{ 'wiredTiger' if (mongodb.install.maintainer != 'percona' and item.value.storage.engine.name.lower() == 'inmemory') else item.value.storage.engine.name }}
+{% if item.value.storage.engine.name.lower() == 'wiredtiger' or (mongodb.install.maintainer != 'percona' and item.value.storage.engine.name.lower() == 'inmemory') %}
+  wiredTiger:
+    engineConfig:
+      cacheSizeGB: {{ item.value.storage.wired_tiger.config.cache.size }}
+{% endif %}
+  journal:
+    enabled: {{ item.value.storage.journal.enabled | to_nice_json }}
+{% if item.value.storage.engine.name.lower() == 'inmemory' and mongodb.install.maintainer == 'percona' %}
+  inMemory:
+    engineConfig:
+      inMemorySizeGB: {{ item.value.storage.in_memory.config.in_memory.size }}
+      statisticsLogDelaySecs: {{ item.value.storage.in_memory.config.statistics.log_delay_secs }}
+{% endif %}
+{% if item.value.storage.engine.name.lower() == 'mmapv1' %}
+  mmapv1:
+    preallocDataFiles: {{ item.value.storage.mmapv1.prealloc_data_files | to_nice_json }}
+    nsSize: {{ item.value.storage.mmapv1.ns_size | int }}
+    quota:
+       enforced: {{ item.value.storage.mmapv1.quota.enforced | to_nice_json }}
+       maxFilesPerDB: {{ item.value.storage.mmapv1.quota.max_files_per_db }}
+    smallFiles: {{ item.value.storage.mmapv1.small_files | to_nice_json }}
+{% endif %}
+
+systemLog:
+  destination: {{ item.value.log.destination }}
+{% if item.value.log.destination == 'file' %}
+  logAppend: {{ item.value.log.append | to_nice_json }}
+  path: {{ item.value.log.path }}/{{ item.value.log.name }}
+  logRotate: rename
+{% endif %}
+
+{% if mongodb.install.maintainer == 'percona' and item.value.log.audit is defined %}
+# Audit log available only in percona version of MongoDB
+auditLog:
+  destination: {{ item.value.log.audit.destination }}
+  format: {{ item.value.log.audit.format }}
+  path: {{ item.value.log.audit.path }}/{{ item.value.log.audit.name }}
+{% if item.value.log.audit.filter is defined and item.value.log.audit.filter != "" %}
+  filter: '{{ item.value.log.audit.filter }}'
+{% endif %}
+{% endif %}
+
+operationProfiling:
+  mode: {{ item.value.profiling.mode }}
+  slowOpThresholdMs: {{ item.value.profiling.slowop.threshold | int }}
+
+security:
+  authorization: disabled
+
+{% if item.value.parameters_list is defined and item.value.parameters_list %}
+{% set paramKeyAdded = False %}
+{% for param in item.value.parameters_list %}
+{% if param.maintainer == mongodb.install.maintainer %}
+{% if not paramKeyAdded %}
+{% set paramKeyAdded = True %}
+setParameter:
+{% endif %}
+  {{ param.name }}: {{ param.value }}
+{% endif %}
+{% endfor %}
+{% endif %}

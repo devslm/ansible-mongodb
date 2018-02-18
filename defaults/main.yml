@@ -1,0 +1,126 @@
+---
+
+#=========================== Local variables =============================
+os_ram_size_gb: "{{ (ansible_memory_mb.real.total / 1024) | round(0) }}"
+mongodb_main_ram_pre_calculated: "{{ (os_ram_size_gb | int) * 0.45 }}"
+mongodb_main_default_ram_size_gb: "{{ (mongodb_main_ram_pre_calculated if (mongodb_main_ram_pre_calculated | int) > 0 else 1) | int }}"
+mongodb_main_name: "mongodb"
+#=========================================================================
+
+mongodb:
+  catalog:
+    base:
+      name: "{{ mongodb_main_name }}" # Default catalog name for all Mongo files, "/etc/mongodb" and others
+  install:
+    maintainer: "percona" # percona | origin
+    # Current role contains version 3.4 and 3.6 for origin version
+    # and only 3.4 for percona version
+    version: "3.4"
+  package: 
+    origin:
+      "3.4": "mongodb-org"
+      "3.6": "mongodb-org"
+    percona:
+      "3.4": "percona-server-mongodb-34"
+  apt:
+    origin:
+      "3.4":
+        ubuntu:
+          keyserver: "keyserver.ubuntu.com"
+          key_id: "0C49F3730359A14518585931BC711F9BA15703C6"
+          repository: "deb [ arch=amd64 ] http://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}/mongodb-org/3.4 multiverse"
+      "3.6":
+        ubuntu:
+          keyserver: "keyserver.ubuntu.com"
+          key_id: "2930ADAE8CAF5059EE73BB4B58712A2291FA4AD5"
+          repository: "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}/mongodb-org/3.6 multiverse"
+    percona:
+      "3.4":
+        url: "https://repo.percona.com/apt/percona-release_0.1-4.{{ ansible_distribution_release }}_all.deb"
+  user: "mongodb"
+  group: "mongodb"
+  # Instances must has a key and instance configuration
+  # i.e main | ram | cache | other
+  instances:
+    # Main mongo instance
+    main:
+      name: "{{ mongodb_main_name }}" # Main Mongo instance
+      service:
+        name: "{{ mongodb_main_name }}.service"
+        autostart:
+          enabled: true
+      config:
+        name: "{{ mongodb_main_name }}.conf"
+        path: "{{ default.path.config }}/{{ mongodb_main_name }}"
+      net:
+        ip: "127.0.0.1"
+        port: 27017
+        http:
+          enabled: false     
+        ipv6: false             
+        maxconns: 65536   
+      process:
+        management:
+          fork: true       
+      storage:
+        dbpath: "{{ default.path.data }}/{{ mongodb_main_name }}"
+        engine: 
+          name: "wiredTiger" # wiredTiger | mmapv1 | inMemory (only percona version)
+        wired_tiger:
+          config:
+            cache:
+              size: "{{ mongodb_main_default_ram_size_gb }}" # Gb
+        # In-memory engine available in enterprise and percona
+        # version only of the MongoDB.
+        in_memory:
+          config:
+            in_memory:
+              size: "{{ mongodb_main_default_ram_size_gb }}" # Gb
+            statistics:
+              log_delay_secs: 0
+        mmapv1:
+          prealloc_data_files: true
+          ns_size: 2048 # Each namespace have file size as 2Gb
+          quota:
+            enforced: false
+            max_files_per_db: 16 # Number of quota files per DB
+          small_files: false # Very useful for non-data nodes
+        journal:
+          enabled: true
+      auth:
+        enabled: true
+      profiling:
+        mode: "slowOp" # off | slowOp | all
+        slowop:
+          threshold: 10000 # In millis
+      log:
+        destination: "file"
+        append: true
+        name: "{{ mongodb_main_name }}.log"
+        path: "{{ default.path.log }}/{{ mongodb_main_name }}"
+        # Audit log available only in percona and enterprise commercial version
+        audit:
+          destination: "file"
+          name: "{{ mongodb_main_name }}.audit.json.log"
+          path: "{{ default.path.log }}/{{ mongodb_main_name }}"
+          format: "JSON" # JSON | BSON (Bson most perfomance choice but required special tools for viewing)
+          filter: "" # Filter string not added to config if empty
+      init_db_list:
+        - "test"
+      init_user_list:
+        admins:
+          - db: "admin" # Default db for all root admin's
+            name: "admin"
+            password: "password"
+            roles: "userAdminAnyDatabase"
+        users:
+          - db: "test"
+            name: "user"
+            password: "password"
+            roles: "readWrite,dbAdmin"
+      # All values must be quoted also true|false
+      parameters_list:
+        - name: "auditAuthorizationSuccess"
+          value: "true"
+          maintainer: "percona"
+

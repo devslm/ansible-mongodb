@@ -1,0 +1,31 @@
+[Unit]
+Description=High-performance, schema-free document-oriented database
+After=network.target
+Documentation=https://docs.mongodb.org/manual
+
+[Service]
+User={{ mongodb.user }}
+Group={{ mongodb.group }}
+ExecStart=/usr/bin/numactl --interleave=all /usr/bin/mongod --config {{ item.value.config.path }}/{{ item.value.config.name }}
+PIDFile={{ default.path.pid }}/{{ mongodb.catalog.base.name }}/{{ item.value.name }}.pid
+# file size
+LimitFSIZE=infinity
+# cpu time
+LimitCPU=infinity
+# virtual memory size
+LimitAS=infinity
+# open files
+LimitNOFILE=256000
+# processes/threads
+LimitNPROC=256000
+# locked memory
+LimitMEMLOCK=infinity
+# total threads (user+kernel)
+TasksMax=infinity
+TasksAccounting=false
+
+# Recommended limits for mongod as specified in
+# http://docs.mongodb.org/manual/reference/ulimit/#recommended-settings
+
+[Install]
+WantedBy=multi-user.target

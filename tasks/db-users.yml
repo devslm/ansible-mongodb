@@ -1,0 +1,50 @@
+---
+
+- name: Add Mongo db's and users
+  block:
+    - name: Init Mongo instances required db's
+      command: "mongo --host {{ item.0.net.ip }} --port {{ item.0.net.port }} {{ item.1 }} --eval 'db.createCollection(\"temp\")'"
+      with_subelements:
+        - "{{ mongodb.instances }}"
+        - "init_db_list"
+
+    - name: Add Mongo Administrator
+      mongodb_user:
+        login_host: "{{ item.0.net.ip }}"
+        login_port: "{{ item.0.net.port }}"
+        database: "{{ item.1.db }}"
+        name: "{{ item.1.name }}"
+        password: "{{ item.1.password }}"
+        roles: "{{ item.1.roles }}"
+        state: present
+      when: item.0.auth is defined and item.0.auth.enabled
+      with_subelements:
+        - "{{ mongodb.instances }}"
+        - "init_user_list.admins"
+
+    - name: Add Mongo required users
+      mongodb_user:
+        login_host: "{{ item.0.net.ip }}"
+        login_port: "{{ item.0.net.port }}"
+        login_user: "{{ item.0.init_user_list.admins.0.name }}"
+        login_password: "{{ item.0.init_user_list.admins.0.password }}"
+        database: "{{ item.1.db }}"
+        name: "{{ item.1.name }}"
+        password: "{{ item.1.password }}"
+        roles: "{{ item.1.roles }}"
+        state: present
+      when: item.0.auth is defined and item.0.auth.enabled
+      with_subelements:
+        - "{{ mongodb.instances }}"
+        - "init_user_list.users"
+
+    # Auth by default always disabled. When we add default admin user
+    # it enable auth after if this is defined by config value.
+    - name: Enable Mongo authentication if required
+      lineinfile:
+        path: "{{ item.value.config.path }}/{{ item.value.config.name }}"
+        regexp: "authorization:"
+        line: "  authorization: enabled"
+      when: item.value.auth.enabled
+      with_dict: "{{ mongodb.instances }}"
+      notify: restart mongo

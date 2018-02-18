@@ -1,0 +1,60 @@
+---
+
+- name: Install Mongo from original repository
+  block:
+    - fail:
+        msg: "Could not install MongoDB because version <<{{ mongodb.install.version }}>> and distribution <<{{ ansible_distribution.lower() }}>> not defined"
+      when: mongodb.apt.origin[mongodb.install.version][ansible_distribution.lower()] is not defined
+
+    - name: Remove Mongo exists apt-key's
+      apt_key:
+        keyserver: "{{ mongodb.apt.origin[item][ansible_distribution.lower()].keyserver }}"
+        id: "{{ mongodb.apt.origin[item][ansible_distribution.lower()].key_id }}"
+        state: absent
+      failed_when: no
+      ignore_errors: yes
+      with_items:
+        - "3.4"
+        - "3.6"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - name: Remove Mongo exists deb repository
+      apt_repository:
+        repo: "{{ mongodb.apt.origin[item][ansible_distribution.lower()].repository }}"
+        state: absent
+      failed_when: no
+      ignore_errors: yes
+      with_items:
+        - "3.4"
+        - "3.6"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - name: Add Mongo apt-key
+      apt_key:
+        keyserver: "{{ mongodb.apt.origin[mongodb.install.version][ansible_distribution.lower()].keyserver }}"
+        id: "{{ mongodb.apt.origin[mongodb.install.version][ansible_distribution.lower()].key_id }}"
+        state: present
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - name: Add Mongo deb repository
+      apt_repository:
+        repo: "{{ mongodb.apt.origin[mongodb.install.version][ansible_distribution.lower()].repository }}"
+        state: present
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - name: Install Mongo
+      apt:
+        name: "{{ mongodb.package.origin[mongodb.install.version] }}"
+        state: present
+        update_cache: yes
+      tags:
+        - "install-packages"
+        - "install-mongo"

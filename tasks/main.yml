@@ -1,0 +1,258 @@
+---
+  
+- name: Check if Mongo already installed
+  command: "mongo --version"
+  register: mongo_installed_version
+  failed_when: no
+  changed_when: no
+  tags:
+    - "install-packages"
+    - "install-mongo"
+    
+- name: Install Mongo if not present
+  when: mongo_installed_version is defined and mongo_installed_version.rc > 0
+  block:
+    - debug:
+        msg: "Preparing to install Mongo version: <<{{ mongodb.install.version }}>> from <<{{ mongodb.install.maintainer }}>> repository"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - fail:
+        msg: "Mongo package version <<{{ mongodb.install.version }}>> from <<{{ mongodb.install.maintainer }}>> does not exists"
+      when: mongodb.package[mongodb.install.maintainer][mongodb.install.version] is not defined
+      tags:
+        - "install-packages"
+        - "install-mongo"
+  
+    - name: Create Mongo group
+      group:
+        name: "{{ mongodb.group }}"
+        state: present
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        
+    - name: Create Mongo user
+      user:
+        name: "{{ mongodb.user }}"
+        group: "{{ mongodb.group }}"
+        state: present
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        
+    - name: Create Mongo required folders
+      file:
+        path: "{{ item }}"
+        state: directory
+        recurse: yes
+        owner: "{{ mongodb.user }}"
+        group: "{{ mongodb.group }}"
+      with_items: 
+        - "{{ mongodb.instances | json_query('*.storage.dbpath') }}"
+        - "{{ mongodb.instances | json_query('*.log.path') }}"
+        - "{{ mongodb.instances | json_query('*.config.path') }}"
+        - "{{ default.path.pid }}/{{ mongodb.catalog.base.name }}"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        
+    - name: Install Mongo required packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - "numactl"
+        - "python-pymongo"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - name: Add UTF-8 locale's for Mongo
+      locale_gen:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - "en_US.UTF-8"
+        - "ru_RU.UTF-8"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        
+    - name: Add Mongo disable transparent hugepages script
+      template:
+        src: "disable-transparent-hugepages.j2"
+        dest: "{{ default.path.config }}/init.d/disable-transparent-hugepages"
+        owner: "root"
+        group: "root"
+        mode: "0755"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        
+    - name: Update autostart script's
+      command: "update-rc.d disable-transparent-hugepages defaults"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - name: Run Mongo origin installation
+      include_tasks: origin-debian.yml
+      when: mongodb.install.maintainer == 'origin'
+
+    - name: Run Mongo percona installation
+      include_tasks: percona-debian.yml
+      when: mongodb.install.maintainer == 'percona'
+
+    - name: Update Mongo config's
+      template:
+        src: "mongodb.conf.j2"
+        dest: "{{ item.value.config.path }}/{{ item.value.config.name }}"
+        owner: "{{ mongodb.user }}"
+        group: "{{ mongodb.group }}"
+        mode: 0755
+      with_dict: "{{ mongodb.instances }}"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+
+    - name: Add Mongo systemd service's files
+      template:
+        src: "mongodb.service.j2"
+        dest: "{{ default.path.config }}/systemd/system/{{ item.value.service.name }}"
+        owner: "root"
+        group: "root"
+        mode: 0777
+      with_dict: "{{ mongodb.instances }}"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - name: Stop default Mongo instance
+      service:
+        name: "mongod"
+        state: stopped
+      failed_when: no
+      ignore_errors: yes
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+
+    - name: Ensure default Mongo service file exists
+      stat: 
+        path: "/lib/systemd/system/mongod.service"
+      register: default_mongo_service_file
+      failed_when: no
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+
+    - name: Remove default Mongo service
+      file:
+        path: "/lib/systemd/system/mongod.service"
+        state: absent
+      when: default_mongo_service_file.stat.exists
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+    
+    - name: Reload systemctl
+      shell: "systemctl daemon-reload"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+
+    - name: Ensure Mongo services stopped
+      service:
+        name: "{{ item.value.name }}"
+        state: stopped
+      with_dict: "{{ mongodb.instances }}"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+
+    - name: Run Mongo services
+      service:
+        name: "{{ item.value.name }}"
+        state: started
+        enabled: yes
+      with_dict: "{{ mongodb.instances }}"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+      
+    - name: Enable Mongo pid directory create on startup
+      template:
+        src: "mongodb.tmpfiles.d.conf.j2"
+        dest: "/usr/lib/tmpfiles.d/{{ mongodb.catalog.base.name }}.conf"
+        owner: "root"
+        group: "root"
+        mode: 0644
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - name: Ensure Mongo instances successfully started
+      wait_for: 
+        host: "{{ item.value.net.ip }}"
+        port: "{{ item.value.net.port }}"
+        state: started
+        timeout: 60 # Try until 60 seconds before fail
+      with_dict: "{{ mongodb.instances }}"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+
+    - include_tasks: db-users.yml
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+      
+  rescue:
+    - name: Send Slack failed deployment notification
+      slack:
+        token: "{{ slack.token }}"
+        channel: "{{ slack.channel }}"
+        username: "{{ slack.username }}"
+        icon_emoji: "{{ slack.emoji.icon }}"
+        attachments:
+          - title: "Deployment error"
+            text: "
+              *Mongo install failed* from <<{{ mongodb.install.maintainer }}>> repository \n
+              Host *<<{{ inventory_hostname }}>>*
+            "
+            color: "{{ slack.attachment.error.line.color }}"
+      when: slack.enabled == 'yes'
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+
+    - fail:
+        msg: "Mongo install failed"
+      tags:
+        - "install-packages"
+        - "install-mongo"
+        - "update-configs"
+        - "update-config-mongo"
+

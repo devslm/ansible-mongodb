@@ -1,0 +1,21 @@
+---
+
+- name: Install Mongo from percona repository
+  block:
+    - name: Add Percona Mongo apt repository
+      apt:
+        deb: "{{ mongodb.apt.percona[mongodb.install.version].url }}"
+        state: present
+        update_cache: yes
+      tags:
+        - "install-packages"
+        - "install-mongo"
+
+    - name: Install Percona Mongo
+      apt:
+        name: "{{ mongodb.package.percona[mongodb.install.version] }}"
+        state: present
+        update_cache: yes
+      tags:
+        - "install-packages"
+        - "install-mongo"

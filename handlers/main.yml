@@ -1,0 +1,7 @@
+---
+
+- name: restart mongo
+  service:
+    name: "{{ item.value.service.name }}"
+    state: "restarted"
+  with_dict: "{{ mongodb.instances }}"
