@@ -1,3 +1,8 @@
+[![Ansible](https://img.shields.io/badge/Ansible-%3E%3D2.4-blue.svg)](https://www.ansible.com/)
+[![MongoDB(Percona)](https://img.shields.io/badge/MongoDB(Percona)-v3.4-orange.svg)](https://www.percona.com/software/mongo-database/percona-server-for-mongodb)
+[![MongoDB(Origin)](https://img.shields.io/badge/MongoDB(Origin)-v3.4-green.svg)](https://www.mongodb.com/)
+[![MongoDB(Origin)](https://img.shields.io/badge/MongoDB(Origin)-v3.6-green.svg)](https://www.mongodb.com/)
+
 # Ansible MongoDB role with origin and percona installation version's
 This ansible role for MongoDB contains origin and percona installation version's.
 
