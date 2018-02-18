@@ -174,7 +174,7 @@ mongodb:
  ```
      
 ### Running
-**After successfull installing system reboot required!!!***
+**After successfull installing system reboot required!!!**
 
 Go to the playbook directory and run:
 ```
