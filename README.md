@@ -1,4 +1,4 @@
-# Ansible MongoDB role
+# Ansible MongoDB role with origin and percona installation version's
 This ansible role for MongoDB contains origin and percona installation version's.
 
 Most difference between origin and percona version is:
@@ -11,3 +11,13 @@ Most difference between origin and percona version is:
  - create defined db's
  - create defined admin's and other user's
  - slack notification on installation failed
+
+### Requirements
+It may be necessary to remove previous MongoDB installation (especially if ansible role is crashes on installation step).
+On Debian/Ubuntu run this commands:
+ - **percona version**
+   - sudo apt-get autoremove -y percona-server-mongodb*
+   - sudo apt-get purge -y percona-server-mongodb*
+ - **origin version**
+   - sudo apt-get autoremove -y mongodb-org*
+   - sudo apt-get purge -y mongodb-org*
