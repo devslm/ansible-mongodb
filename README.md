@@ -11,6 +11,8 @@ Most difference between origin and percona version is:
  - create defined db's
  - create defined admin's and other user's
  - slack notification on installation failed
+ - each MongoDB instance service running under **numactl** for best perfomance
+ - install script for disabling huge pages and add it to autostart
 
 ### Requirements
  - ubuntu >= 14.04 (Debian version not tested yet)
@@ -172,6 +174,8 @@ mongodb:
  ```
      
 ### Running
+**After successfull installing system reboot required!!!***
+
 Go to the playbook directory and run:
 ```
 sudo ansible-playbook -i <inventory-host-file> <playbook-file>.yml
