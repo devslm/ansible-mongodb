@@ -181,3 +181,13 @@ By default all config file's located in **/etc/mongodb**, all logs in **/opt/log
 We can run our two instances (service name defined in mongodb.instances.*.name variable):
   - ```sudo service mongodb (start|stop|restart)```
   - ```sudo service mongodb-ram (start|stop|restart)```
+
+### Tasks tags
+Mongo role contain tags:
+```
+  tags:
+    - "install-packages" # Can be used when full installation with other roles required
+    - "install-mongo" # Can be used when only MongoDB installation required
+    - "update-configs" # Can be used when only config with other roles required
+    - "update-config-mongo" # Can be used when only MongoDB config update required
+```
