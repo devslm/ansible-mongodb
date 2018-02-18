@@ -84,7 +84,11 @@ mongodb:
   # Instances must has a key and instance configuration
   # i.e main | ram | cache | other
   instances:
-    # Mongo instance with in-memory percona storage.
+    # For example change main instance port
+    main:
+      net:
+        port: 28017
+    # Second MongoDB instance with in-memory percona storage.
     # WARNING! Data erase on system reboot.
     ram:
       name: "{{ mongodb_ram_name }}" # Mongodb instance in RAM for temporaly data
@@ -172,3 +176,8 @@ Go to the playbook directory and run:
 ```
 sudo ansible-playbook -i <inventory-host-file> <playbook-file>.yml
 ```
+By default all config file's located in **/etc/mongodb**, all logs in **/opt/logs/mongodb**, db's data located in **/opt/data/mongodb** and **/opt/data/mongodb-ram** (if second instance named as ram is using)
+
+We can run our two instances (service name defined in mongodb.instances.*.name variable):
+  - ```sudo service mongodb (start|stop|restart)```
+  - ```sudo service mongodb-ram (start|stop|restart)```
